@@ -88,7 +88,7 @@ input, select, textarea {
 		font-size: 19pt;
 		font-weight: 300;
 		line-height: 1.75em;
-		color: #888;
+		color: rgb(80, 77, 77);
 	}
 
 		body.is-preload *, body.is-preload *:before, body.is-preload *:after {
@@ -175,7 +175,7 @@ input, select, textarea {
 	}
 
 		a:hover {
-			color: #E27689;
+			color: #3246aa;
 			border-bottom-color: rgba(255, 255, 255, 0);
 		}
 
@@ -2169,7 +2169,7 @@ input, select, textarea {
 				}
 
 					#nav ul li a.active span:before {
-						color: #e27689;
+						color: #3246aa;
 					}
 
 /* Footer */
