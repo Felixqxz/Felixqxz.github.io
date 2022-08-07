@@ -1774,6 +1774,7 @@ input, select, textarea {
 			display: block;
 			width: 60%;
 			margin: 2em auto;
+			align-items: center;
 		}
 
 		.image.left {

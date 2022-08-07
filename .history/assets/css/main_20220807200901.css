@@ -1772,8 +1772,9 @@ input, select, textarea {
 
 		.image.featured {
 			display: block;
-			width: 60%;
-			margin: 2em auto;
+			width: 70%;
+			margin: aut;
+			align-items: center;
 		}
 
 		.image.left {
