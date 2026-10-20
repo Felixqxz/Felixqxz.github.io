@@ -1,0 +1,125 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+async function render() {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+
+  return worker.fetch(
+    new Request("http://localhost/", { headers: { accept: "text/html" } }),
+    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+}
+
+test("server-renders Xingzhi Qian's academic profile", async () => {
+  const response = await render();
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+
+  const html = await response.text();
+  assert.match(html, /Xingzhi Qian/);
+  assert.doesNotMatch(html, /<h2>Designing agents that reason, adapt, and improve\.<\/h2>/);
+  assert.match(html, /PhD student in Computer Science/);
+  assert.match(html, /Systems Security Research Lab \(S2Lab\)/);
+  assert.match(html, /Professor Lorenzo Cavallaro/);
+  assert.match(html, /MEng degree in Computing/);
+  assert.match(html, /Imperial College London/);
+  assert.match(html, /https:\/\/s2lab\.org\//);
+  assert.match(html, /https:\/\/s2lab\.org\/people\/sullivan\//);
+  assert.match(html, /context management/);
+  assert.match(html, /improve from/);
+  assert.match(html, /execution experience/);
+  assert.match(html, /diverse agent benchmarks/);
+  assert.match(html, /real-world domains/);
+  assert.doesNotMatch(html, /Terminal-Bench|GAIA2|ClawMark/);
+  assert.match(html, /PhD Researcher/);
+  assert.match(html, /class="nowrap">in Computer Science<\/span>/);
+  assert.match(html, /Research interests/);
+  assert.doesNotMatch(html, /Agents as systems/);
+  assert.match(html, /Context management/);
+  assert.match(html, /Agent efficiency/);
+  assert.match(html, /Self-improvement/);
+  assert.match(html, /profile-sidebar/);
+  assert.match(html, /profile-avatar/);
+  assert.match(html, /src="\/xingzhi-qian\.jpg"/);
+  assert.match(html, /alt="Portrait of Xingzhi Qian"/);
+  assert.doesNotMatch(html, /Default profile avatar|avatar-head|avatar-shoulders/);
+  assert.doesNotMatch(html, /profile-trace|AGENT TRACE/);
+  assert.doesNotMatch(html, /profile-orb/);
+  assert.match(html, /academic-header/);
+  assert.match(html, /Primary navigation/);
+  assert.match(html, /RESEARCH SIGNAL/);
+  assert.match(html, /Research loop stages/);
+  assert.match(html, /MOVE POINTER · SELECT STAGE · CLICK CORE/);
+  assert.doesNotMatch(html, /Interactive research loop/);
+  assert.doesNotMatch(html, /Move the pointer, select a stage/);
+  assert.match(html, /Observe/);
+  assert.match(html, /Diagnose/);
+  assert.match(html, /Adapt/);
+  assert.match(html, /Verify/);
+  assert.match(html, /Microsoft/);
+  assert.match(html, /Research Intern/);
+  assert.match(html, /quality- and cost-efficient agent harness optimization/);
+  assert.match(html, /BAFTA View experiences for Fire TV/);
+  assert.match(html, /automated API testing infrastructure/);
+  assert.match(html, /Adaptive agent harnesses/);
+  assert.match(html, /Grounded program understanding/);
+  assert.match(html, /program semantics, static analysis, and retrieval-grounded evidence/);
+  assert.match(html, /Nov 2023—Oct 2027/);
+  assert.match(html, /Sep 2019—Jun 2023/);
+  assert.match(html, /Researching systems security in S2Lab/);
+  assert.doesNotMatch(html, /Selected publications/);
+  assert.doesNotMatch(html, /Education and experience/);
+  assert.doesNotMatch(html, /<summary>Abstract/);
+  assert.match(html, /publication-summary/);
+  assert.match(html, /class="author-self">Xingzhi Qian<\/strong>/);
+  assert.match(html, /<summary>BibTeX/);
+  assert.match(html, /qian2026malaika/);
+  assert.match(html, /zheng2026knowing/);
+  assert.match(html, /he2025benchmarking/);
+  assert.match(html, /qian2025lamd/);
+  assert.match(html, /Copy BibTeX citation/);
+  assert.match(html, /Malaika: Understanding Malware through Tri-Grounded Agentic Reasoning/);
+  assert.match(html, /2607\.09179/);
+  assert.match(html, /Knowing It’s Malicious/);
+  assert.match(html, /ISSTA ’26/);
+  assert.match(html, /LAMD: Context-driven Android Malware Detection/);
+  assert.match(html, /University College London/);
+  assert.match(html, /Google Scholar/);
+  assert.match(html, /mailto:xingzhi\.qian\.23@ucl\.ac\.uk/);
+  assert.match(html, /aria-label="Email Xingzhi Qian"/);
+  assert.match(html, /aria-label="Google Scholar"/);
+  assert.match(html, /aria-label="GitHub"/);
+  assert.match(html, /aria-label="LinkedIn"/);
+  assert.match(html, /scholar-icon/);
+  assert.match(html, /github-icon/);
+  assert.match(html, /linkedin-icon/);
+  assert.match(html, /href="#education">Education<\/a>/);
+  assert.match(html, /href="#internships">Internships<\/a>/);
+  assert.match(html, /id="education"/);
+  assert.match(html, /id="internships"/);
+  assert.match(html, /class="education-grid"/);
+  assert.match(html, /education-card education-card-ucl/);
+  assert.match(html, /class="experience-track"/);
+  assert.doesNotMatch(html, /experience-marker/);
+  assert.doesNotMatch(html, /Cross-platform Media Experiences/);
+  assert.doesNotMatch(html, /Automated API Testing/);
+  assert.doesNotMatch(html, />Agent Efficiency and Self-Improvement<\/h3>/);
+  assert.doesNotMatch(html, /id="background"|href="#background"|>Background</);
+  assert.ok(html.indexOf('id="about"') < html.indexOf('id="education"'));
+  assert.ok(html.indexOf('id="education"') < html.indexOf('id="internships"'));
+  assert.ok(html.indexOf('id="internships"') < html.indexOf('id="research"'));
+  assert.doesNotMatch(html, /Start a conversation|Open channel/);
+  assert.doesNotMatch(html, /Filter publications|All work/);
+  assert.doesNotMatch(html, /Quiet mode|Signal on/);
+  assert.doesNotMatch(html, /class="initials"/);
+  assert.doesNotMatch(html, /Working thesis|Research thesis/);
+  assert.doesNotMatch(html, /At Microsoft, I explore agent efficiency/);
+  assert.doesNotMatch(html, /sidebar-nav/);
+  assert.doesNotMatch(html, /Two lenses|two connected threads/i);
+  assert.doesNotMatch(html, /Maxquant/i);
+  assert.doesNotMatch(html, /7999096821/);
+  assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+});
