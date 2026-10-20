@@ -348,9 +348,8 @@ export default function Home() {
             </div>
             <div className="education-grid" data-reveal>
               <article className="education-card education-card-ucl">
-                <div className="education-mark" aria-hidden="true">UCL</div>
                 <div className="education-card-body">
-                  <div className="education-card-meta"><span>2023—2027</span><em>London, UK</em></div>
+                  <div className="education-card-meta"><em>London, UK</em></div>
                   <h3>MPhil / PhD · Computer Science</h3>
                   <p className="education-institution">University College London</p>
                   <p className="education-detail">Researching systems security in S2Lab, with a focus on agentic AI, program analysis, and grounded reasoning for malware and complex software understanding.</p>
@@ -358,9 +357,8 @@ export default function Home() {
                 </div>
               </article>
               <article className="education-card education-card-icl">
-                <div className="education-mark" aria-hidden="true">ICL</div>
                 <div className="education-card-body">
-                  <div className="education-card-meta"><span>2019—2023</span><em>London, UK</em></div>
+                  <div className="education-card-meta"><em>London, UK</em></div>
                   <h3>MEng · Computing</h3>
                   <p className="education-institution">Imperial College London</p>
                   <p className="education-detail">Integrated master’s degree specializing in artificial intelligence and machine learning.</p>

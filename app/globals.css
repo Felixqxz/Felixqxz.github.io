@@ -710,13 +710,11 @@ a:hover .arrow-icon { transform: translate(2px, -2px); }
 .bibtex-panel button:focus-visible { border-color: #1268a8; background: #1268a8; color: #fff; outline: none; }
 
 .education-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-.education-card { position: relative; min-height: 0; display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 26px; overflow: hidden; padding: 27px 30px; border: 1px solid #dce2e6; border-radius: 20px; background: #f8fafb; }
+.education-card { position: relative; min-height: 0; overflow: hidden; padding: 27px 30px; border: 1px solid #dce2e6; border-radius: 20px; background: #f8fafb; }
 .education-card::after { content: ""; position: absolute; right: -42px; bottom: -62px; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle, rgba(18,104,168,.09), transparent 70%); pointer-events: none; }
 .education-card-icl { background: linear-gradient(145deg, #faf9fc, #f7f9fa); }
 .education-card-icl::after { background: radial-gradient(circle, rgba(94,70,151,.09), transparent 70%); }
-.education-mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 16px; background: #1f536f; color: #fff; font-size: 13px; font-weight: 800; letter-spacing: -.02em; box-shadow: 0 10px 22px rgba(31,83,111,.16); }
-.education-card-icl .education-mark { background: #594c87; box-shadow: 0 10px 22px rgba(89,76,135,.16); }
-.education-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; color: #687177; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .07em; }
+.education-card-meta { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 13px; color: #687177; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .07em; }
 .education-card-meta em { color: #91999e; font-style: normal; font-weight: 650; }
 .education-card h3 { margin: 0; color: #273138; font-size: 19px; line-height: 1.28; letter-spacing: -.025em; }
 .education-institution { margin: 6px 0 0; color: #1268a8; font-size: 13px; font-weight: 750; }
@@ -770,8 +768,7 @@ a:hover .arrow-icon { transform: translate(2px, -2px); }
   .academic-section { padding-bottom: 46px; margin-bottom: 46px; }
   .academic-label { font-size: 2rem; }
   .academic-lead { font-size: 18px; }
-  .education-card { grid-template-columns: 1fr; gap: 0; padding: 23px; }
-  .education-mark { margin-bottom: 28px; }
+  .education-card { padding: 23px; }
   .research-focus { grid-template-columns: 1fr; }
   .academic-topics { grid-template-columns: 1fr; }
   .academic-topics article:nth-child(odd) { border-right: 0; padding-right: 0; }

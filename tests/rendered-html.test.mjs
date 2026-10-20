@@ -102,6 +102,8 @@ test("server-renders Xingzhi Qian's academic profile", async () => {
   assert.match(html, /id="internships"/);
   assert.match(html, /class="education-grid"/);
   assert.match(html, /education-card education-card-ucl/);
+  assert.doesNotMatch(html, /education-mark/);
+  assert.doesNotMatch(html, />2023—2027<|>2019—2023</);
   assert.match(html, /class="experience-track"/);
   assert.doesNotMatch(html, /experience-marker/);
   assert.doesNotMatch(html, /Cross-platform Media Experiences/);
