@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MdEmail } from "react-icons/md";
 import { SiGithub, SiGooglescholar, SiLinkedin } from "react-icons/si";
 
@@ -90,128 +92,351 @@ const papers: Paper[] = [
 
 const researchSteps = [
   {
-    label: "Observe",
-    title: "Read the trajectory",
-    detail: "Capture where context, tools, and computation actually change an agent’s path.",
-    signal: "TRACE",
-    readout: "Execution traces",
-    packets: ["RUN / TRACE", "CONTEXT / MAP", "COST / PATH"],
+    label: "Context",
+    title: "Context management",
+    description: "Selecting, retaining, and routing the information agents need.",
   },
   {
-    label: "Diagnose",
-    title: "Find the bottleneck",
-    detail: "Separate wasted effort from missing semantics, evidence, or control structure.",
-    signal: "DELTA",
-    readout: "Failure modes",
-    packets: ["QUALITY / Δ", "WASTE / FOUND", "EVIDENCE / GAP"],
+    label: "Grounding",
+    title: "Grounding",
+    description: "Connecting reasoning and actions to verifiable evidence.",
   },
   {
-    label: "Adapt",
-    title: "Rewrite the harness",
-    detail: "Turn experience into auditable updates to prompts, tools, memory, and routing.",
-    signal: "UPDATE",
-    readout: "Agent harnesses",
-    packets: ["PROMPT / EDIT", "TOOL / ROUTE", "MEMORY / PATCH"],
+    label: "Efficiency",
+    title: "Efficiency",
+    description: "Improving capability while controlling computation and cost.",
   },
   {
-    label: "Verify",
-    title: "Ground the gain",
-    detail: "Test whether improvement is reliable, evidence-backed, and worth its cost.",
-    signal: "PROOF",
-    readout: "Grounded evidence",
-    packets: ["CLAIM / CHECK", "SEMANTICS / LINK", "GAIN / VERIFY"],
+    label: "Improve",
+    title: "Self-improvement",
+    description: "Turning execution experience into auditable system updates.",
   },
 ];
 
-function ResearchInstrument() {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [activeMode, setActiveMode] = useState(0);
-  const mode = researchSteps[activeMode];
+function mobiusCenter(t: number, target = new THREE.Vector3()) {
+  return target.set(
+    3.3 * Math.sin(t),
+    1.34 * Math.sin(t * 2),
+    .92 * Math.cos(t),
+  );
+}
+
+function createMobiusGeometry() {
+  const uSegments = 420;
+  const crossSegments = 24;
+  const halfWidth = .32;
+  const halfThickness = .055;
+  const superellipsePower = .5;
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const center = new THREE.Vector3();
+  const tangent = new THREE.Vector3();
+  const frameA = new THREE.Vector3();
+  const frameB = new THREE.Vector3();
+  const ribbonDirection = new THREE.Vector3();
+  const surfaceNormal = new THREE.Vector3();
+  const reference = new THREE.Vector3();
+
+  for (let i = 0; i < uSegments; i += 1) {
+    const t = (i / uSegments) * Math.PI * 2;
+    mobiusCenter(t, center);
+    tangent.set(
+      3.3 * Math.cos(t),
+      2.68 * Math.cos(t * 2),
+      -.92 * Math.sin(t),
+    ).normalize();
+    reference.set(0, 0, Math.abs(tangent.z) > .88 ? 0 : 1);
+    if (reference.lengthSq() === 0) reference.set(0, 1, 0);
+    frameA.crossVectors(reference, tangent).normalize();
+    frameB.crossVectors(tangent, frameA).normalize();
+    ribbonDirection.copy(frameA).multiplyScalar(Math.cos(t / 2)).addScaledVector(frameB, Math.sin(t / 2)).normalize();
+    surfaceNormal.crossVectors(tangent, ribbonDirection).normalize();
+
+    for (let j = 0; j < crossSegments; j += 1) {
+      const angle = (j / crossSegments) * Math.PI * 2;
+      const cosine = Math.cos(angle);
+      const sine = Math.sin(angle);
+      const across = halfWidth * Math.sign(cosine) * Math.pow(Math.abs(cosine), superellipsePower);
+      const depth = halfThickness * Math.sign(sine) * Math.pow(Math.abs(sine), superellipsePower);
+      const point = center.clone()
+        .addScaledVector(ribbonDirection, across)
+        .addScaledVector(surfaceNormal, depth);
+      positions.push(point.x, point.y, point.z);
+    }
+  }
+
+  for (let i = 0; i < uSegments; i += 1) {
+    const nextRow = i < uSegments - 1 ? i + 1 : 0;
+    const seamOffset = i < uSegments - 1 ? 0 : crossSegments / 2;
+    for (let j = 0; j < crossSegments; j += 1) {
+      const nextJ = (j + 1) % crossSegments;
+      const a = i * crossSegments + j;
+      const aNext = i * crossSegments + nextJ;
+      const b = nextRow * crossSegments + ((j + seamOffset) % crossSegments);
+      const bNext = nextRow * crossSegments + ((nextJ + seamOffset) % crossSegments);
+      indices.push(a, b, aNext, b, bNext, aNext);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function ResearchOrbitalScene() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const handleMove = (event: PointerEvent) => {
-      const bounds = card.getBoundingClientRect();
-      const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-      const y = (event.clientY - bounds.top) / bounds.height - 0.5;
-      card.style.setProperty("--tilt-x", `${y * -4}deg`);
-      card.style.setProperty("--tilt-y", `${x * 5}deg`);
-      card.style.setProperty("--card-x", `${x * 14}px`);
-      card.style.setProperty("--card-y", `${y * 14}px`);
-      card.style.setProperty("--field-rx", `${y * -15}deg`);
-      card.style.setProperty("--field-ry", `${x * 19}deg`);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, .1, 100);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const roomEnvironment = new RoomEnvironment();
+    const environmentMap = pmrem.fromScene(roomEnvironment, .045).texture;
+    scene.environment = environmentMap;
+    const model = new THREE.Group();
+    model.rotation.set(-.14, -.12, -.025);
+    scene.add(model);
+
+    const mobiusGeometry = createMobiusGeometry();
+    const mobiusMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color("#7895a4"),
+      side: THREE.DoubleSide,
+      roughness: .3,
+      metalness: .28,
+      clearcoat: 1,
+      clearcoatRoughness: .16,
+      sheen: .2,
+      sheenColor: new THREE.Color("#dbe8ed"),
+      iridescence: .12,
+      iridescenceIOR: 1.28,
+      iridescenceThicknessRange: [140, 260],
+      transmission: .035,
+      thickness: .38,
+      envMapIntensity: 1.38,
+      emissive: new THREE.Color("#18394b"),
+      emissiveIntensity: .022,
+    });
+    const mobius = new THREE.Mesh(mobiusGeometry, mobiusMaterial);
+    mobius.renderOrder = 2;
+    model.add(mobius);
+
+    const particleGeometry = new THREE.SphereGeometry(.095, 32, 24);
+    const particleColor = new THREE.Color("#1268a8");
+    const particleCoreMaterial = new THREE.MeshPhysicalMaterial({
+      color: particleColor,
+      roughness: .2,
+      metalness: .08,
+      clearcoat: 1,
+      clearcoatRoughness: .1,
+      emissive: new THREE.Color("#0b4d7f"),
+      emissiveIntensity: .2,
+      envMapIntensity: 1.25,
+    });
+    const particle = new THREE.Mesh(particleGeometry, particleCoreMaterial);
+    model.add(particle);
+
+    scene.add(new THREE.HemisphereLight(0xf3fbff, 0x17233f, 1.6));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 4.2);
+    keyLight.position.set(-3.8, 4.7, 6.5);
+    scene.add(keyLight);
+    const rimLight = new THREE.PointLight(0x6f9caf, 10, 15);
+    rimLight.position.set(4, -2.2, 4.5);
+    scene.add(rimLight);
+    const cyanLight = new THREE.PointLight(0xa8d5e4, 7, 13);
+    cyanLight.position.set(-4, 1.8, 2.5);
+    scene.add(cyanLight);
+
+    let width = 1;
+    let height = 1;
+    let cameraRestingDistance = 10.8;
+    const resize = () => {
+      const bounds = canvas.getBoundingClientRect();
+      width = Math.max(1, bounds.width);
+      height = Math.max(1, bounds.height);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      cameraRestingDistance = width < 620 ? 12.4 : 10.8;
+      camera.position.set(0, 0, cameraRestingDistance);
+      camera.updateProjectionMatrix();
+    };
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+    resize();
+
+    const targetRotation = { x: -.14, y: -.12 };
+    const velocity = { x: 0, y: 0 };
+    const pointer = { active: false, id: -1, x: 0, y: 0 };
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const pointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      pointer.active = true;
+      pointer.id = event.pointerId;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      velocity.x = 0;
+      velocity.y = 0;
+      canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add("is-dragging");
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (!pointer.active || event.pointerId !== pointer.id) return;
+      const dx = event.clientX - pointer.x;
+      const dy = event.clientY - pointer.y;
+      targetRotation.y += dx * .009;
+      targetRotation.x = THREE.MathUtils.clamp(targetRotation.x + dy * .007, -.65, .65);
+      velocity.y = dx * .0018;
+      velocity.x = dy * .0014;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+    };
+    const pointerUp = (event: PointerEvent) => {
+      if (!pointer.active || event.pointerId !== pointer.id) return;
+      pointer.active = false;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      canvas.classList.remove("is-dragging");
+    };
+    const resetView = () => {
+      targetRotation.x = -.14;
+      targetRotation.y = -.12;
+      velocity.x = 0;
+      velocity.y = 0;
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      const step = event.shiftKey ? .18 : .09;
+      if (event.key === "ArrowLeft") targetRotation.y -= step;
+      else if (event.key === "ArrowRight") targetRotation.y += step;
+      else if (event.key === "ArrowUp") targetRotation.x = Math.max(-.65, targetRotation.x - step);
+      else if (event.key === "ArrowDown") targetRotation.x = Math.min(.65, targetRotation.x + step);
+      else if (event.key === "Enter" || event.key === "Home") resetView();
+      else return;
+      event.preventDefault();
     };
 
-    const handleLeave = () => {
-      card.style.setProperty("--tilt-x", "0deg");
-      card.style.setProperty("--tilt-y", "0deg");
-      card.style.setProperty("--card-x", "0px");
-      card.style.setProperty("--card-y", "0px");
-      card.style.setProperty("--field-rx", "0deg");
-      card.style.setProperty("--field-ry", "0deg");
-    };
+    canvas.addEventListener("pointerdown", pointerDown);
+    canvas.addEventListener("pointermove", pointerMove);
+    canvas.addEventListener("pointerup", pointerUp);
+    canvas.addEventListener("pointercancel", pointerUp);
+    canvas.addEventListener("dblclick", resetView);
+    canvas.addEventListener("keydown", keyDown);
 
-    card.addEventListener("pointermove", handleMove);
-    card.addEventListener("pointerleave", handleLeave);
+    const trackCenter = new THREE.Vector3();
+    const trackTangent = new THREE.Vector3();
+    const trackReference = new THREE.Vector3();
+    const trackFrameA = new THREE.Vector3();
+    const trackFrameB = new THREE.Vector3();
+    const trackRibbonDirection = new THREE.Vector3();
+    const trackSurfaceNormal = new THREE.Vector3();
+    const particleTrackPoints: THREE.Vector3[] = [];
+    const particleTrackSamples = 960;
+
+    // A point offset from one face of a Möbius strip returns to its starting
+    // orientation after two circuits. Sampling that double cover produces a
+    // genuinely closed path on the ribbon instead of hiding a positional jump
+    // at the seam.
+    for (let index = 0; index < particleTrackSamples; index += 1) {
+      const trackT = (index / particleTrackSamples) * Math.PI * 4;
+      mobiusCenter(trackT, trackCenter);
+      trackTangent.set(
+        3.3 * Math.cos(trackT),
+        2.68 * Math.cos(trackT * 2),
+        -.92 * Math.sin(trackT),
+      ).normalize();
+      trackReference.set(0, 0, Math.abs(trackTangent.z) > .88 ? 0 : 1);
+      if (trackReference.lengthSq() === 0) trackReference.set(0, 1, 0);
+      trackFrameA.crossVectors(trackReference, trackTangent).normalize();
+      trackFrameB.crossVectors(trackTangent, trackFrameA).normalize();
+      trackRibbonDirection.copy(trackFrameA)
+        .multiplyScalar(Math.cos(trackT / 2))
+        .addScaledVector(trackFrameB, Math.sin(trackT / 2))
+        .normalize();
+      trackSurfaceNormal.crossVectors(trackTangent, trackRibbonDirection).normalize();
+      particleTrackPoints.push(
+        trackCenter.clone()
+          .addScaledVector(trackRibbonDirection, .06)
+          .addScaledVector(trackSurfaceNormal, .158),
+      );
+    }
+
+    const particleTrack = new THREE.CatmullRomCurve3(particleTrackPoints, true, "centripetal", .35);
+    particleTrack.arcLengthDivisions = 3200;
+    particleTrack.updateArcLengths();
+    const particleTarget = new THREE.Vector3();
+    let particleProgress = .035;
+    let previousFrameTime = performance.now();
+    let animationFrame = 0;
+    const animate = (frameTime: number) => {
+      const frameDelta = Math.min(Math.max((frameTime - previousFrameTime) / 1000, 0), .04);
+      previousFrameTime = frameTime;
+      if (!pointer.active) {
+        velocity.x *= .94;
+        velocity.y *= .94;
+        targetRotation.x = THREE.MathUtils.clamp(targetRotation.x + velocity.x, -.65, .65);
+        targetRotation.y += velocity.y;
+      }
+      model.rotation.x += (targetRotation.x - model.rotation.x) * .105;
+      model.rotation.y += (targetRotation.y - model.rotation.y) * .105;
+      const edgeOnAmount = Math.abs(Math.sin(model.rotation.y));
+      const fittedCameraDistance = cameraRestingDistance + edgeOnAmount * 2 + Math.abs(model.rotation.x) * .45;
+      camera.position.z += (fittedCameraDistance - camera.position.z) * .09;
+      particleProgress = (particleProgress + frameDelta / (prefersReducedMotion ? 38 : 18)) % 1;
+      particleTrack.getPointAt(particleProgress, particleTarget);
+      particle.position.copy(particleTarget);
+      const pulse = prefersReducedMotion ? 1 : .97 + Math.sin(frameTime * .0028) * .035;
+      particle.scale.setScalar(pulse);
+      renderer.render(scene, camera);
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animationFrame = requestAnimationFrame(animate);
+
     return () => {
-      card.removeEventListener("pointermove", handleMove);
-      card.removeEventListener("pointerleave", handleLeave);
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      canvas.removeEventListener("pointerdown", pointerDown);
+      canvas.removeEventListener("pointermove", pointerMove);
+      canvas.removeEventListener("pointerup", pointerUp);
+      canvas.removeEventListener("pointercancel", pointerUp);
+      canvas.removeEventListener("dblclick", resetView);
+      canvas.removeEventListener("keydown", keyDown);
+      environmentMap.dispose();
+      roomEnvironment.dispose();
+      pmrem.dispose();
+      mobiusGeometry.dispose();
+      mobiusMaterial.dispose();
+      particleGeometry.dispose();
+      particleCoreMaterial.dispose();
+      renderer.dispose();
     };
   }, []);
 
-  const advanceMode = () => setActiveMode((current) => (current + 1) % researchSteps.length);
-
   return (
-    <div className="hero-visual" data-reveal>
-      <div className="specimen-card" ref={cardRef} data-mode={activeMode}>
-        <div className="specimen-topline">
-          <span>RESEARCH SIGNAL / XQ—01</span>
-          <span className="specimen-live"><i /> {mode.signal} MODE</span>
-        </div>
-        <div className="portrait-system">
-          <span className="signal-grid" aria-hidden="true" />
-          <span className="signal-sweep" aria-hidden="true" />
-          <span className="signal-axis signal-axis-x" aria-hidden="true" />
-          <span className="signal-axis signal-axis-y" aria-hidden="true" />
-          <div className="orbital-field">
-            <span className="orbit orbit-a" aria-hidden="true" />
-            <span className="orbit orbit-b" aria-hidden="true" />
-            <span className="orbit orbit-c" aria-hidden="true" />
-            <button className="monogram-core" type="button" onClick={advanceMode} aria-label={`Advance from ${mode.label} to the next research stage`}>
-              <span className="sphere-ring sphere-ring-a" aria-hidden="true" />
-              <span className="sphere-ring sphere-ring-b" aria-hidden="true" />
-            <span className="sphere-ring sphere-ring-c" aria-hidden="true" />
-            <span className="monogram-index">0{activeMode + 1} / 04 · {mode.signal}</span>
-            <span className="monogram-caption" aria-live="polite">{mode.title}<br /><em>Click to advance</em></span>
-            </button>
-            <span className="data-packet packet-a"><i /> {mode.packets[0]}</span>
-            <span className="data-packet packet-b"><i /> {mode.packets[1]}</span>
-            <span className="data-packet packet-c"><i /> {mode.packets[2]}</span>
-          </div>
-          <span className="coordinate coordinate-a">INPUT / EXPERIENCE</span>
-          <span className="coordinate coordinate-b">OUTPUT / {mode.signal}</span>
-          <span className="instrument-hint">MOVE POINTER · SELECT STAGE · CLICK CORE</span>
-        </div>
-        <div className="specimen-readout" aria-label="Research loop stages">
-          {researchSteps.map((step, index) => (
-            <button
-              type="button"
-              className={activeMode === index ? "active" : ""}
-              onClick={() => setActiveMode(index)}
-              onPointerEnter={() => setActiveMode(index)}
-              onFocus={() => setActiveMode(index)}
-              aria-pressed={activeMode === index}
-              key={step.label}
-            >
-              <span>0{index + 1} / {step.label}</span>
-              <strong>{step.readout}</strong>
-            </button>
-          ))}
-        </div>
+    <canvas
+      ref={canvasRef}
+      className="research-webgl-canvas"
+      role="group"
+      tabIndex={0}
+      aria-label="Interactive 3D Möbius improvement loop. One particle travels continuously along the surface. Drag to rotate or use the arrow keys."
+    />
+  );
+}
+
+function ResearchInstrument() {
+  return (
+    <div className="research-orbit" data-reveal>
+      <div className="research-loop-simulation">
+        <ResearchOrbitalScene />
       </div>
-      <span className="vertical-note">OBSERVE × DIAGNOSE × ADAPT × VERIFY</span>
     </div>
   );
 }
@@ -317,7 +542,7 @@ export default function Home() {
             <span>Research interests</span>
             <div>
               <strong>Context management</strong>
-              <strong>Grounding</strong>
+              <strong>Grounded Systems</strong>
               <strong>Agent efficiency</strong>
               <strong>RSI</strong>
               <strong>System Security</strong>
@@ -346,23 +571,19 @@ export default function Home() {
             <div className="academic-heading" data-reveal>
               <span className="academic-label">Education</span>
             </div>
-            <div className="education-grid" data-reveal>
-              <article className="education-card education-card-ucl">
-                <div className="education-card-body">
-                  <div className="education-card-meta"><em>London, UK</em></div>
-                  <h3>MPhil / PhD · Computer Science</h3>
-                  <p className="education-institution">University College London</p>
-                  <p className="education-detail">Researching systems security in S2Lab, with a focus on agentic AI, program analysis, and grounded reasoning for malware and complex software understanding.</p>
-                  <span className="education-dates">Nov 2023—Oct 2027</span>
+            <div className="experience-track" data-reveal>
+              <article>
+                <div className="experience-card">
+                  <div className="experience-meta"><span>Nov 2023—Oct 2027</span></div>
+                  <h3>University College London</h3>
+                  <p className="experience-company">MPhil / PhD · Computer Science</p>
                 </div>
               </article>
-              <article className="education-card education-card-icl">
-                <div className="education-card-body">
-                  <div className="education-card-meta"><em>London, UK</em></div>
-                  <h3>MEng · Computing</h3>
-                  <p className="education-institution">Imperial College London</p>
-                  <p className="education-detail">Integrated master’s degree specializing in artificial intelligence and machine learning.</p>
-                  <span className="education-dates">Sep 2019—Jun 2023</span>
+              <article>
+                <div className="experience-card">
+                  <div className="experience-meta"><span>Sep 2019—Jun 2023</span></div>
+                  <h3>Imperial College London</h3>
+                  <p className="experience-company">MEng · Computing</p>
                 </div>
               </article>
             </div>
@@ -375,7 +596,7 @@ export default function Home() {
             <div className="experience-track" data-reveal>
               <article>
                 <div className="experience-card">
-                  <div className="experience-meta"><span>May—Oct 2026</span><em>Research</em></div>
+                  <div className="experience-meta"><span>May—Oct 2026</span></div>
                   <h3>Microsoft</h3>
                   <p className="experience-company">Research Intern</p>
                   <p>Developing quality- and cost-efficient agent harness optimization across coding and general-purpose agent settings.</p>
@@ -383,7 +604,7 @@ export default function Home() {
               </article>
               <article>
                 <div className="experience-card">
-                  <div className="experience-meta"><span>May—Sep 2022</span><em>Engineering</em></div>
+                  <div className="experience-meta"><span>May—Sep 2022</span></div>
                   <h3>BAFTA Media Technology</h3>
                   <p className="experience-company">Software Engineering Intern</p>
                   <p>Built BAFTA View experiences for Fire TV and the web, with a focus on accessible cross-platform interaction.</p>
@@ -391,7 +612,7 @@ export default function Home() {
               </article>
               <article>
                 <div className="experience-card">
-                  <div className="experience-meta"><span>May—Aug 2021</span><em>Quality</em></div>
+                  <div className="experience-meta"><span>May—Aug 2021</span></div>
                   <h3>Shanghai Ximalaya Technology</h3>
                   <p className="experience-company">Software Engineering in Test Intern</p>
                   <p>Designed automated API testing infrastructure and led smoke and regression testing for production services.</p>
@@ -403,32 +624,19 @@ export default function Home() {
           <section className="academic-section" id="research">
             <div className="academic-heading" data-reveal>
               <span className="academic-label">Research</span>
-              <p>I focus on four connected questions across the agent improvement loop.</p>
+              <p className="research-overview">
+                My research studies how agent systems turn interaction into reliable improvement through four connected capabilities.
+              </p>
+              <div className="research-pillars" aria-label="Research directions">
+                {researchSteps.map((step, index) => (
+                  <article className={`research-pillar research-pillar-${index + 1}`} key={step.title}>
+                    <strong>{step.title}</strong>
+                    <p>{step.description}</p>
+                  </article>
+                ))}
+              </div>
             </div>
-
-            <div className="research-focus" data-reveal>
-              <article>
-                <span>Current direction · 01</span>
-                <h3>Adaptive agent harnesses</h3>
-                <p>Turn execution traces into auditable, recoverable updates to prompts, tools, memory, and routing, while jointly optimizing task quality and execution cost.</p>
-              </article>
-              <article>
-                <span>Current direction · 02</span>
-                <h3>Grounded program understanding</h3>
-                <p>Combine program semantics, static analysis, and retrieval-grounded evidence so agents can produce precise, verifiable conclusions in complex software domains.</p>
-              </article>
-            </div>
-
-            <div className="academic-topics" data-reveal>
-              <article><span>01</span><div><h3>Context management</h3><p>Structure retrieval, memory, and execution history so agents reason over what matters.</p></div></article>
-              <article><span>02</span><div><h3>Grounding</h3><p>Connect agent decisions to semantics, tool outputs, and evidence that can be inspected.</p></div></article>
-              <article><span>03</span><div><h3>Efficiency</h3><p>Improve quality–cost trade-offs across context, routing, tools, and search.</p></div></article>
-              <article><span>04</span><div><h3>Self-improvement</h3><p>Turn trajectories and failures into auditable updates to the surrounding harness.</p></div></article>
-            </div>
-
-            <div className="research-instrument-wrap" data-reveal>
-              <ResearchInstrument />
-            </div>
+            <ResearchInstrument />
           </section>
 
           <section className="academic-section" id="publications">
