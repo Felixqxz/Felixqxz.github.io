@@ -193,7 +193,7 @@ function ResearchOrbitalScene() {
     if (!canvas) return;
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
@@ -264,6 +264,8 @@ function ResearchOrbitalScene() {
       const bounds = canvas.getBoundingClientRect();
       width = Math.max(1, bounds.width);
       height = Math.max(1, bounds.height);
+      const pixelRatio = Math.min(window.devicePixelRatio, width < 620 ? 1.25 : 1.5);
+      if (renderer.getPixelRatio() !== pixelRatio) renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       cameraRestingDistance = width < 620 ? 12.4 : 10.8;
@@ -276,22 +278,36 @@ function ResearchOrbitalScene() {
 
     const targetRotation = { x: -.14, y: -.12 };
     const velocity = { x: 0, y: 0 };
-    const pointer = { active: false, id: -1, x: 0, y: 0 };
+    const pointer = { pressed: false, active: false, id: -1, x: 0, y: 0, startX: 0, startY: 0 };
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const pointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
-      pointer.active = true;
+      pointer.pressed = true;
+      pointer.active = false;
       pointer.id = event.pointerId;
       pointer.x = event.clientX;
       pointer.y = event.clientY;
+      pointer.startX = event.clientX;
+      pointer.startY = event.clientY;
       velocity.x = 0;
       velocity.y = 0;
-      canvas.setPointerCapture(event.pointerId);
-      canvas.classList.add("is-dragging");
     };
     const pointerMove = (event: PointerEvent) => {
-      if (!pointer.active || event.pointerId !== pointer.id) return;
+      if (!pointer.pressed || event.pointerId !== pointer.id) return;
+      if (!pointer.active) {
+        const totalX = event.clientX - pointer.startX;
+        const totalY = event.clientY - pointer.startY;
+        if (Math.hypot(totalX, totalY) < 7) return;
+        if (event.pointerType === "touch" && Math.abs(totalY) > Math.abs(totalX)) {
+          pointer.pressed = false;
+          pointer.id = -1;
+          return;
+        }
+        pointer.active = true;
+        canvas.setPointerCapture(event.pointerId);
+        canvas.classList.add("is-dragging");
+      }
       const dx = event.clientX - pointer.x;
       const dy = event.clientY - pointer.y;
       targetRotation.y += dx * .009;
@@ -302,10 +318,12 @@ function ResearchOrbitalScene() {
       pointer.y = event.clientY;
     };
     const pointerUp = (event: PointerEvent) => {
-      if (!pointer.active || event.pointerId !== pointer.id) return;
+      if (event.pointerId !== pointer.id) return;
+      pointer.pressed = false;
       pointer.active = false;
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       canvas.classList.remove("is-dragging");
+      pointer.id = -1;
     };
     const resetView = () => {
       targetRotation.x = -.14;
@@ -376,7 +394,10 @@ function ResearchOrbitalScene() {
     let particleProgress = .035;
     let previousFrameTime = performance.now();
     let animationFrame = 0;
+    let isSceneVisible = false;
+    let isDocumentVisible = !document.hidden;
     const animate = (frameTime: number) => {
+      animationFrame = 0;
       const frameDelta = Math.min(Math.max((frameTime - previousFrameTime) / 1000, 0), .04);
       previousFrameTime = frameTime;
       if (!pointer.active) {
@@ -396,12 +417,39 @@ function ResearchOrbitalScene() {
       const pulse = prefersReducedMotion ? 1 : .97 + Math.sin(frameTime * .0028) * .035;
       particle.scale.setScalar(pulse);
       renderer.render(scene, camera);
+      if (isSceneVisible && isDocumentVisible) animationFrame = requestAnimationFrame(animate);
+    };
+    const startAnimation = () => {
+      if (animationFrame || !isSceneVisible || !isDocumentVisible) return;
+      previousFrameTime = performance.now();
       animationFrame = requestAnimationFrame(animate);
     };
-    animationFrame = requestAnimationFrame(animate);
+    const stopAnimation = () => {
+      if (!animationFrame) return;
+      cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+    };
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      isSceneVisible = entry.isIntersecting;
+      if (isSceneVisible) startAnimation();
+      else stopAnimation();
+    }, { rootMargin: "160px 0px", threshold: 0 });
+    const handleDocumentVisibility = () => {
+      isDocumentVisible = !document.hidden;
+      if (isDocumentVisible) startAnimation();
+      else stopAnimation();
+    };
+
+    particleTrack.getPointAt(particleProgress, particleTarget);
+    particle.position.copy(particleTarget);
+    renderer.render(scene, camera);
+    visibilityObserver.observe(canvas);
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
 
     return () => {
       cancelAnimationFrame(animationFrame);
+      visibilityObserver.disconnect();
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
       resizeObserver.disconnect();
       canvas.removeEventListener("pointerdown", pointerDown);
       canvas.removeEventListener("pointermove", pointerMove);
@@ -479,6 +527,7 @@ export default function Home() {
   useEffect(() => {
     const root = document.documentElement;
     const handlePointer = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
       root.style.setProperty("--pointer-x", `${event.clientX}px`);
       root.style.setProperty("--pointer-y", `${event.clientY}px`);
     };

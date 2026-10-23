@@ -795,6 +795,11 @@ a:hover .arrow-icon { transform: translate(2px, -2px); }
 .research-mode-outcome strong { display: block; max-width: 175px; margin-top: 14px; color: #26343c; font-size: 17px; line-height: 1.25; letter-spacing: -.03em; }
 
 .research-orbit { margin-top: 37px; }
+.research-orbit[data-reveal] {
+  filter: none;
+  transition: opacity .72s ease, transform .82s var(--ease-out);
+}
+.research-orbit[data-reveal].is-visible { filter: none; }
 .orbit-modes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1441,6 +1446,7 @@ a:hover .arrow-icon { transform: translate(2px, -2px); }
   height: 520px;
   overflow: hidden;
   background: transparent;
+  contain: layout paint style;
 }
 .research-loop-field {
   position: absolute;
@@ -1476,14 +1482,11 @@ a:hover .arrow-icon { transform: translate(2px, -2px); }
   height: 100%;
   display: block;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
-  filter: drop-shadow(0 15px 18px rgba(39,65,79,.08));
-  transition: filter .3s ease;
 }
 .research-webgl-canvas.is-dragging {
   cursor: grabbing;
-  filter: saturate(1.02) contrast(1.01) drop-shadow(0 19px 22px rgba(39,65,79,.11));
 }
 .research-webgl-canvas:focus-visible {
   outline: 1px solid color-mix(in srgb, var(--loop-active) 65%, white);
