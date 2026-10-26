@@ -113,6 +113,492 @@ const researchSteps = [
   },
 ];
 
+function AcademicGalaxyField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+      premultipliedAlpha: true,
+    });
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.sortObjects = false;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, 1, .1, 50);
+    camera.position.z = 12.5;
+
+    let randomSeed = 24051998;
+    const random = () => {
+      randomSeed |= 0;
+      randomSeed = randomSeed + 0x6d2b79f5 | 0;
+      let value = Math.imul(randomSeed ^ randomSeed >>> 15, 1 | randomSeed);
+      value = value + Math.imul(value ^ value >>> 7, 61 | value) ^ value;
+      return ((value ^ value >>> 14) >>> 0) / 4294967296;
+    };
+    const gaussian = () => {
+      let value = 0;
+      while (!value) value = random();
+      return Math.sqrt(-2 * Math.log(value)) * Math.cos(Math.PI * 2 * random());
+    };
+
+    const isCompact = window.innerWidth < 720;
+    const starCount = isCompact ? 3400 : 6200;
+    const galaxyCount = Math.round(starCount * .79);
+    const positions = new Float32Array(starCount * 3);
+    const scatter = new Float32Array(starCount * 3);
+    const seeds = new Float32Array(starCount * 4);
+    const colors = new Float32Array(starCount * 3);
+    const palette = [
+      new THREE.Color("#9edbff"),
+      new THREE.Color("#b8adff"),
+      new THREE.Color("#ffd4a0"),
+      new THREE.Color("#a7edff"),
+    ];
+
+    for (let index = 0; index < starCount; index += 1) {
+      const offset = index * 3;
+      const seedOffset = index * 4;
+      const isBackground = index >= galaxyCount;
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      let luminosity = 1;
+
+      if (isBackground) {
+        x = (random() * 2 - 1) * 10.5;
+        y = (random() * 2 - 1) * 6.3;
+        z = (random() * 2 - 1) * 5;
+        luminosity = .24 + random() * .4;
+      } else {
+        const region = random();
+        if (region < .17) {
+          const radius = Math.abs(gaussian()) * .52;
+          const angle = random() * Math.PI * 2;
+          x = Math.cos(angle) * radius;
+          y = Math.sin(angle) * radius * .78;
+          z = gaussian() * .22;
+          luminosity = 1.15 + random() * .55;
+        } else if (region < .28) {
+          const radius = .4 + Math.pow(random(), .7) * 3.9;
+          const angle = random() * Math.PI * 2;
+          x = Math.cos(angle) * radius;
+          y = Math.sin(angle) * radius * .72;
+          z = gaussian() * .11;
+          luminosity = .34 + random() * .3;
+        } else {
+          const arm = random() < .5 ? 0 : Math.PI;
+          const radius = .34 + Math.pow(random(), .64) * 4.25;
+          const armWidth = .06 + radius * .045;
+          const lane = random();
+          const laneOffset = lane < .56 ? -.26 : lane < .88 ? .24 : .88;
+          const noise = laneOffset * armWidth + gaussian() * armWidth * .34;
+          const angle = arm + radius * 2.32 + gaussian() * (.04 + radius * .018);
+          x = Math.cos(angle) * (radius + noise);
+          y = Math.sin(angle) * (radius + noise) * .72;
+          z = gaussian() * (.055 + radius * .012);
+          luminosity = lane < .56 ? .9 : lane < .88 ? .64 : .38;
+        }
+      }
+
+      positions[offset] = x;
+      positions[offset + 1] = y;
+      positions[offset + 2] = z;
+
+      const band = random() < .46;
+      scatter[offset] = band ? (random() * 2 - 1) * 10.5 : (random() * 2 - 1) * 10.5;
+      scatter[offset + 1] = band
+        ? scatter[offset] * -.16 + gaussian() * (1.05 + random() * .7)
+        : (random() * 2 - 1) * 6.5;
+      scatter[offset + 2] = (random() * 2 - 1) * 5.5;
+
+      const sizeSeed = random();
+      seeds[seedOffset] = sizeSeed;
+      seeds[seedOffset + 1] = luminosity;
+      seeds[seedOffset + 2] = random() * Math.PI * 2;
+      seeds[seedOffset + 3] = isBackground ? 1 : 0;
+
+      const color = palette[Math.min(palette.length - 1, Math.floor(random() * palette.length))];
+      colors[offset] = color.r;
+      colors[offset + 1] = color.g;
+      colors[offset + 2] = color.b;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aScatter", new THREE.BufferAttribute(scatter, 3));
+    geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 4));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    const uniforms = {
+      uTime: { value: 0 },
+      uScroll: { value: 0 },
+      uYaw: { value: 0 },
+      uPitch: { value: 0 },
+      uPointer: { value: new THREE.Vector2(-99, -99) },
+      uPointerEnergy: { value: 0 },
+      uPixelRatio: { value: 1 },
+      uOpacity: { value: 1 },
+    };
+
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      uniforms,
+      vertexShader: `
+        attribute vec3 aScatter;
+        attribute vec4 aSeed;
+        uniform float uTime;
+        uniform float uScroll;
+        uniform float uYaw;
+        uniform float uPitch;
+        uniform vec2 uPointer;
+        uniform float uPointerEnergy;
+        uniform float uPixelRatio;
+        varying vec3 vColor;
+        varying float vIntensity;
+        varying float vHalo;
+
+        mat3 rotateX(float angle) {
+          float c = cos(angle), s = sin(angle);
+          return mat3(1., 0., 0., 0., c, s, 0., -s, c);
+        }
+        mat3 rotateY(float angle) {
+          float c = cos(angle), s = sin(angle);
+          return mat3(c, 0., -s, 0., 1., 0., s, 0., c);
+        }
+        mat3 rotateZ(float angle) {
+          float c = cos(angle), s = sin(angle);
+          return mat3(c, s, 0., -s, c, 0., 0., 0., 1.);
+        }
+
+        void main() {
+          float background = aSeed.w;
+          float loosen = smoothstep(.05, .95, uScroll) * mix(.14, .045, background);
+          vec3 p = mix(position, aScatter, loosen);
+          float breathing = 1. + sin(uScroll * 8.4) * .045;
+          p.xy *= breathing + uScroll * .34;
+          p = rotateZ(uTime * .012 + uScroll * 1.18) * p;
+          p = rotateY(uYaw) * rotateX(.92 + uPitch) * p;
+
+          vec4 world = modelMatrix * vec4(p, 1.);
+          vec2 delta = world.xy - uPointer;
+          float distanceToPointer = length(delta);
+          float push = exp(-distanceToPointer * distanceToPointer * .72) * uPointerEnergy;
+          if (distanceToPointer > .001) world.xy += normalize(delta) * push * .26;
+
+          vec4 view = viewMatrix * world;
+          gl_Position = projectionMatrix * view;
+          float perspective = clamp(11. / max(2., -view.z), .55, 1.85);
+          float size = aSeed.x < .7
+            ? mix(1.25, 2.35, aSeed.x / .7)
+            : aSeed.x < .95
+              ? mix(2.35, 4.35, (aSeed.x - .7) / .25)
+              : mix(5.2, 9.5, (aSeed.x - .95) / .05);
+          gl_PointSize = min(27., size * perspective * uPixelRatio);
+          vColor = color;
+          vIntensity = aSeed.y * mix(.66, 1., .5 + .5 * sin(uTime * (.45 + aSeed.x) + aSeed.z));
+          vIntensity *= mix(.58, 1., 1. - background);
+          vHalo = smoothstep(.88, 1., aSeed.x);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vColor;
+        varying float vIntensity;
+        varying float vHalo;
+        uniform float uOpacity;
+
+        void main() {
+          vec2 point = gl_PointCoord * 2. - 1.;
+          float d2 = dot(point, point);
+          if (d2 > 1.) discard;
+          float core = exp(-d2 * 15.);
+          float halo = exp(-d2 * 3.2) * (.22 + vHalo * .48);
+          float flare = vHalo * (
+            exp(-abs(point.x) * 28.) * exp(-point.y * point.y * 2.4) +
+            exp(-abs(point.y) * 28.) * exp(-point.x * point.x * 2.4)
+          ) * .32;
+          float alpha = clamp((core + halo + flare) * vIntensity * uOpacity * 1.22, 0., .96);
+          vec3 star = mix(vColor * .88, vec3(1.), core * .45 + flare * .16);
+          gl_FragColor = vec4(star, alpha);
+        }
+      `,
+    });
+
+    const stars = new THREE.Points(geometry, material);
+    scene.add(stars);
+
+    const meteorTextureCanvas = document.createElement("canvas");
+    meteorTextureCanvas.width = 256;
+    meteorTextureCanvas.height = 32;
+    const meteorContext = meteorTextureCanvas.getContext("2d");
+    if (meteorContext) {
+      const trail = meteorContext.createLinearGradient(0, 0, meteorTextureCanvas.width, 0);
+      trail.addColorStop(0, "rgba(151, 188, 220, 0)");
+      trail.addColorStop(.56, "rgba(166, 202, 231, .025)");
+      trail.addColorStop(.86, "rgba(197, 224, 244, .13)");
+      trail.addColorStop(.97, "rgba(235, 246, 255, .48)");
+      trail.addColorStop(1, "rgba(255, 255, 255, 0)");
+      meteorContext.fillStyle = trail;
+      meteorContext.fillRect(0, 14, 250, 4);
+      const head = meteorContext.createRadialGradient(242, 16, 0, 242, 16, 7);
+      head.addColorStop(0, "rgba(255, 255, 255, .76)");
+      head.addColorStop(.2, "rgba(220, 239, 253, .48)");
+      head.addColorStop(.58, "rgba(150, 193, 226, .1)");
+      head.addColorStop(1, "rgba(108, 153, 194, 0)");
+      meteorContext.fillStyle = head;
+      meteorContext.fillRect(234, 8, 16, 16);
+    }
+    const meteorTexture = new THREE.CanvasTexture(meteorTextureCanvas);
+    meteorTexture.colorSpace = THREE.SRGBColorSpace;
+    meteorTexture.minFilter = THREE.LinearFilter;
+    meteorTexture.magFilter = THREE.LinearFilter;
+
+    type MeteorState = {
+      sprite: THREE.Sprite;
+      material: THREE.SpriteMaterial;
+      elapsed: number;
+      lifetime: number;
+      speed: number;
+      angle: number;
+      brightness: number;
+    };
+    const meteorGroup = new THREE.Group();
+    meteorGroup.renderOrder = 4;
+    scene.add(meteorGroup);
+    const meteorCount = isCompact ? 2 : 3;
+    const meteors: MeteorState[] = [];
+    let meteorHalfWidth = 9;
+    let meteorHalfHeight = 5;
+    const resetMeteor = (meteor: MeteorState, initial = false) => {
+      meteor.angle = -.43 - random() * .1;
+      meteor.speed = 2.05 + random() * .85;
+      meteor.lifetime = 2.2 + random() * .65;
+      meteor.brightness = .18 + random() * .13;
+      meteor.elapsed = -(initial ? 2 + random() * 5 : 7 + random() * 11);
+      meteor.sprite.position.set(
+        -meteorHalfWidth + 1 + random() * meteorHalfWidth * 1.5,
+        meteorHalfHeight + .15 + random() * 1.8,
+        1.2 + random() * 2.3,
+      );
+      meteor.sprite.scale.set(1.25 + random() * 1.15, .032 + random() * .022, 1);
+      meteor.material.rotation = meteor.angle;
+      meteor.material.opacity = 0;
+    };
+    for (let index = 0; index < meteorCount; index += 1) {
+      const meteorMaterial = new THREE.SpriteMaterial({
+        map: meteorTexture,
+        color: index === 2 ? 0xd8d3f0 : 0xd5e9f7,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const meteorSprite = new THREE.Sprite(meteorMaterial);
+      meteorSprite.renderOrder = 4;
+      const meteor: MeteorState = {
+        sprite: meteorSprite,
+        material: meteorMaterial,
+        elapsed: 0,
+        lifetime: 2,
+        speed: 3,
+        angle: -.55,
+        brightness: .5,
+      };
+      resetMeteor(meteor, true);
+      meteor.elapsed = -(2.2 + index * 4.8 + random() * 1.4);
+      meteorGroup.add(meteorSprite);
+      meteors.push(meteor);
+    }
+
+    const pointer = new THREE.Vector2(-99, -99);
+    const targetPointer = new THREE.Vector2(-99, -99);
+    let targetScroll = window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+    let scroll = targetScroll;
+    let yaw = 0;
+    let pitch = 0;
+    let targetYaw = 0;
+    let targetPitch = 0;
+    let yawVelocity = 0;
+    let pitchVelocity = 0;
+    let pointerEnergy = 0;
+    let lastPointer = new THREE.Vector2();
+    let pointerTime = 0;
+    let dragging = false;
+    let dragX = 0;
+    let dragY = 0;
+    let animationFrame = 0;
+    let documentVisible = !document.hidden;
+
+    const resize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, width < 720 ? 1.15 : 1.4);
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / Math.max(height, 1);
+      camera.updateProjectionMatrix();
+      uniforms.uPixelRatio.value = pixelRatio;
+      const viewHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * camera.position.z;
+      meteorHalfHeight = viewHeight * .5;
+      meteorHalfWidth = meteorHalfHeight * camera.aspect;
+      stars.position.x = width > 940 ? 2.45 : width > 620 ? 1.65 : .55;
+      stars.position.y = width > 620 ? .2 : .55;
+      stars.scale.setScalar(width > 940 ? 1 : width > 620 ? .9 : .78);
+    };
+
+    const handlePointer = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      const now = performance.now();
+      const velocity = pointerTime
+        ? Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y) / Math.max(8, now - pointerTime)
+        : 0;
+      lastPointer.set(event.clientX, event.clientY);
+      pointerTime = now;
+      pointerEnergy = Math.min(.55, pointerEnergy + velocity * .1);
+      const viewHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * camera.position.z;
+      const viewWidth = viewHeight * camera.aspect;
+      targetPointer.set(
+        (event.clientX / Math.max(window.innerWidth, 1) - .5) * viewWidth,
+        (.5 - event.clientY / Math.max(window.innerHeight, 1)) * viewHeight,
+      );
+      if (dragging) {
+        const deltaX = event.clientX - dragX;
+        const deltaY = event.clientY - dragY;
+        targetYaw += deltaX * .0045;
+        targetPitch = THREE.MathUtils.clamp(targetPitch + deltaY * .0034, -.6, .6);
+        yawVelocity = deltaX * .0009;
+        pitchVelocity = deltaY * .0007;
+        dragX = event.clientX;
+        dragY = event.clientY;
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "touch" || event.button !== 0) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("a, button, input, textarea, summary, details")) return;
+      dragging = true;
+      dragX = event.clientX;
+      dragY = event.clientY;
+      document.documentElement.classList.add("galaxy-dragging");
+    };
+    const endDrag = () => {
+      dragging = false;
+      document.documentElement.classList.remove("galaxy-dragging");
+    };
+    const handleScroll = () => {
+      targetScroll = window.scrollY / Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+    };
+    const handleVisibility = () => {
+      documentVisible = !document.hidden;
+      if (documentVisible && !animationFrame) animationFrame = requestAnimationFrame(frame);
+    };
+
+    const startedAt = performance.now();
+    let previousFrame = startedAt;
+    const frame = (now: number) => {
+      animationFrame = 0;
+      if (!documentVisible) return;
+      const delta = Math.min(.05, (now - previousFrame) / 1000);
+      previousFrame = now;
+      const still = reducedMotion.matches;
+
+      scroll += (targetScroll - scroll) * Math.min(1, delta * 7.5);
+      pointer.lerp(targetPointer, Math.min(1, delta * 8));
+      pointerEnergy *= Math.pow(.18, delta);
+      if (!dragging) {
+        targetYaw += yawVelocity;
+        targetPitch = THREE.MathUtils.clamp(targetPitch + pitchVelocity, -.6, .6);
+        yawVelocity *= Math.pow(.06, delta);
+        pitchVelocity *= Math.pow(.025, delta);
+        targetPitch *= Math.pow(.42, delta);
+      }
+      yaw += (targetYaw - yaw) * Math.min(1, delta * 8);
+      pitch += (targetPitch - pitch) * Math.min(1, delta * 8);
+
+      uniforms.uTime.value = still ? 0 : (now - startedAt) / 1000;
+      uniforms.uScroll.value = scroll;
+      uniforms.uYaw.value = still ? 0 : yaw;
+      uniforms.uPitch.value = still ? 0 : pitch;
+      uniforms.uPointer.value.copy(pointer);
+      uniforms.uPointerEnergy.value = still ? 0 : pointerEnergy;
+      meteorGroup.visible = !still;
+      if (!still) {
+        const meteorSpeedBoost = 1 + Math.min(.12, Math.abs(targetScroll - scroll) * 6);
+        for (const meteor of meteors) {
+          meteor.elapsed += delta;
+          if (meteor.elapsed < 0) {
+            meteor.material.opacity = 0;
+            continue;
+          }
+          const progress = meteor.elapsed / meteor.lifetime;
+          if (
+            progress >= 1 ||
+            meteor.sprite.position.x > meteorHalfWidth + 4 ||
+            meteor.sprite.position.y < -meteorHalfHeight - 3
+          ) {
+            resetMeteor(meteor);
+            continue;
+          }
+          const fadeIn = THREE.MathUtils.smoothstep(progress, 0, .12);
+          const fadeOut = 1 - THREE.MathUtils.smoothstep(progress, .62, 1);
+          meteor.material.opacity = meteor.brightness * fadeIn * fadeOut;
+          const distance = meteor.speed * delta * meteorSpeedBoost;
+          meteor.sprite.position.x += Math.cos(meteor.angle) * distance;
+          meteor.sprite.position.y += Math.sin(meteor.angle) * distance;
+        }
+      }
+      renderer.render(scene, camera);
+      animationFrame = requestAnimationFrame(frame);
+    };
+
+    resize();
+    animationFrame = requestAnimationFrame(frame);
+    window.addEventListener("resize", resize, { passive: true });
+    window.addEventListener("pointermove", handlePointer, { passive: true });
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    window.addEventListener("pointerup", endDrag, { passive: true });
+    window.addEventListener("pointercancel", endDrag, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      document.documentElement.classList.remove("galaxy-dragging");
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", handlePointer);
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("scroll", handleScroll);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      geometry.dispose();
+      material.dispose();
+      for (const meteor of meteors) meteor.material.dispose();
+      meteorTexture.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  return (
+    <div className="academic-galaxy-layer" aria-hidden="true">
+      <canvas ref={canvasRef} className="academic-galaxy-canvas" />
+    </div>
+  );
+}
+
 function mobiusCenter(t: number, target = new THREE.Vector3()) {
   return target.set(
     3.3 * Math.sin(t),
@@ -196,7 +682,7 @@ function ResearchOrbitalScene() {
     renderer.setPixelRatio(1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = .86;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(34, 1, .1, 100);
@@ -206,54 +692,59 @@ function ResearchOrbitalScene() {
     scene.environment = environmentMap;
     const model = new THREE.Group();
     model.rotation.set(-.14, -.12, -.025);
+    model.scale.setScalar(.9);
+    model.position.y = -.08;
     scene.add(model);
 
     const mobiusGeometry = createMobiusGeometry();
     const mobiusMaterial = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#7895a4"),
+      color: new THREE.Color("#263a52"),
       side: THREE.DoubleSide,
-      roughness: .3,
-      metalness: .28,
-      clearcoat: 1,
-      clearcoatRoughness: .16,
-      sheen: .2,
-      sheenColor: new THREE.Color("#dbe8ed"),
-      iridescence: .12,
-      iridescenceIOR: 1.28,
-      iridescenceThicknessRange: [140, 260],
-      transmission: .035,
-      thickness: .38,
-      envMapIntensity: 1.38,
-      emissive: new THREE.Color("#18394b"),
-      emissiveIntensity: .022,
+      roughness: .38,
+      metalness: .62,
+      clearcoat: .68,
+      clearcoatRoughness: .27,
+      sheen: .46,
+      sheenColor: new THREE.Color("#7396b6"),
+      sheenRoughness: .56,
+      iridescence: .34,
+      iridescenceIOR: 1.34,
+      iridescenceThicknessRange: [210, 470],
+      transmission: .018,
+      thickness: .3,
+      envMapIntensity: .78,
+      emissive: new THREE.Color("#071523"),
+      emissiveIntensity: .08,
     });
     const mobius = new THREE.Mesh(mobiusGeometry, mobiusMaterial);
     mobius.renderOrder = 2;
     model.add(mobius);
 
     const particleGeometry = new THREE.SphereGeometry(.095, 32, 24);
-    const particleColor = new THREE.Color("#1268a8");
+    const particleColor = new THREE.Color("#63c9ff");
     const particleCoreMaterial = new THREE.MeshPhysicalMaterial({
       color: particleColor,
-      roughness: .2,
-      metalness: .08,
+      roughness: .16,
+      metalness: .18,
       clearcoat: 1,
       clearcoatRoughness: .1,
-      emissive: new THREE.Color("#0b4d7f"),
-      emissiveIntensity: .2,
-      envMapIntensity: 1.25,
+      emissive: new THREE.Color("#168fc9"),
+      emissiveIntensity: .72,
+      envMapIntensity: .9,
     });
     const particle = new THREE.Mesh(particleGeometry, particleCoreMaterial);
+    const particleLight = new THREE.PointLight(0x45bfff, 3.2, 1.75, 2);
+    particle.add(particleLight);
     model.add(particle);
 
-    scene.add(new THREE.HemisphereLight(0xf3fbff, 0x17233f, 1.6));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 4.2);
+    scene.add(new THREE.HemisphereLight(0x80bde6, 0x02050d, .92));
+    const keyLight = new THREE.DirectionalLight(0xbfdcff, 1.8);
     keyLight.position.set(-3.8, 4.7, 6.5);
     scene.add(keyLight);
-    const rimLight = new THREE.PointLight(0x6f9caf, 10, 15);
+    const rimLight = new THREE.PointLight(0x7770d9, 4.6, 15);
     rimLight.position.set(4, -2.2, 4.5);
     scene.add(rimLight);
-    const cyanLight = new THREE.PointLight(0xa8d5e4, 7, 13);
+    const cyanLight = new THREE.PointLight(0x51b8db, 3.4, 13);
     cyanLight.position.set(-4, 1.8, 2.5);
     scene.add(cyanLight);
 
@@ -268,7 +759,7 @@ function ResearchOrbitalScene() {
       if (renderer.getPixelRatio() !== pixelRatio) renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      cameraRestingDistance = width < 620 ? 12.4 : 10.8;
+      cameraRestingDistance = width < 620 ? 13.1 : 11.45;
       camera.position.set(0, 0, cameraRestingDistance);
       camera.updateProjectionMatrix();
     };
@@ -549,6 +1040,7 @@ export default function Home() {
 
   return (
     <main className="academic-site">
+      <AcademicGalaxyField />
       <div className="pointer-glow" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
       <header className="academic-header">
