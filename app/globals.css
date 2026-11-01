@@ -1779,6 +1779,7 @@ html.galaxy-dragging, html.galaxy-dragging * { cursor: grabbing !important; user
 .academic-paper-links { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 13px; }
 .academic-paper-links > a,
 .academic-bibtex summary { color: #1268a8; font-size: 12px; font-weight: 700; }
+.paper-link-disabled { color: #7b858b; font-size: 12px; font-weight: 700; cursor: default; }
 .academic-paper-links > a:hover,
 .academic-bibtex summary:hover { color: #0b4e7e; text-decoration: underline; text-underline-offset: 3px; }
 .academic-bibtex summary { cursor: pointer; list-style: none; }

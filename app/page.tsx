@@ -13,13 +13,26 @@ type Paper = {
   authors: string;
   venue: string;
   abstract: string;
-  paper: string;
+  page?: string;
+  paper?: string;
   code?: string;
   award?: string;
-  bibtex: string;
+  bibtex?: string;
 };
 
 const papers: Paper[] = [
+  {
+    year: "2026",
+    status: "Preprint ’26",
+    title: "ParetoSaddler: Pareto-Guided Optimization of Agent Harnesses for Quality and Cost",
+    authors:
+      "Xingzhi Qian, Sungho Park, Rongyuan Tan, Jianbo Yu, Jue Zhang, Lorenzo Cavallaro, Menglin Xia, Yanzhi Chen, Xinnuo Xu, Yu Kang, Xinran Zheng, Gagan Somashekar, Xuchao Zhang, Chetan Bansal, Qingwei Lin, Victor Rühle",
+    venue: "Preprint, 2026",
+    abstract:
+      "ParetoSaddler separates intermediate candidate promotion from final deployment selection, using repeated quality–cost evidence and Bayesian bootstrap Pareto support to preserve useful harness updates and improve both quality and cost.",
+    page: "https://autosaddler-projectpage.github.io/ParetoSaddler/",
+    code: "https://github.com/microsoft/AutoSaddler/tree/feat/paretosaddler",
+  },
   {
     year: "2026",
     status: "arXiv ’26",
@@ -1195,14 +1208,23 @@ export default function Home() {
                       <span>{paper.status}</span>
                       {paper.award && <strong>✦ {paper.award}</strong>}
                     </div>
-                    <h3><a href={paper.paper} target="_blank" rel="noreferrer">{paper.title}</a></h3>
+                    <h3>
+                      {paper.paper ? (
+                        <a href={paper.paper} target="_blank" rel="noreferrer">{paper.title}</a>
+                      ) : paper.title}
+                    </h3>
                     <p className="publication-summary">{paper.abstract}</p>
                     <p className="authors"><HighlightedAuthors authors={paper.authors} /></p>
                     <p className="venue">{paper.venue}</p>
                     <div className="academic-paper-links">
-                      <a href={paper.paper} target="_blank" rel="noreferrer">Paper <ArrowIcon /></a>
+                      {paper.page && <a href={paper.page} target="_blank" rel="noreferrer">Page <ArrowIcon /></a>}
+                      {paper.paper ? (
+                        <a href={paper.paper} target="_blank" rel="noreferrer">Paper <ArrowIcon /></a>
+                      ) : (
+                        <span className="paper-link-disabled" aria-disabled="true" title="Paper coming soon">Paper</span>
+                      )}
                       {paper.code && <a href={paper.code} target="_blank" rel="noreferrer">Code <ArrowIcon /></a>}
-                      <BibTeXPanel bibtex={paper.bibtex} title={paper.title} />
+                      {paper.bibtex && <BibTeXPanel bibtex={paper.bibtex} title={paper.title} />}
                     </div>
                   </div>
                 </article>
