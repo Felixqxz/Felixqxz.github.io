@@ -1196,7 +1196,6 @@ export default function Home() {
           <section className="academic-section" id="publications">
             <div className="academic-heading" data-reveal>
               <span className="academic-label">Publications</span>
-              <p>Work on grounded agent reasoning, reliable evaluation, and LLMs for complex software systems.</p>
             </div>
 
             <div className="academic-publications">
