@@ -648,7 +648,7 @@ html.galaxy-dragging, html.galaxy-dragging * { cursor: grabbing !important; user
 .sidebar-interests strong { padding: 4px 7px; border-radius: 3px; background: #f0f4f7; color: #52606a; font-size: 10px; font-weight: 600; }
 
 .academic-content { min-width: 0; grid-column: 2; }
-.academic-section { padding: 0 0 58px; margin-bottom: 58px; border-bottom: 1px solid #e3e6e8; scroll-margin-top: 94px; }
+.academic-section { padding: 0 0 38px; margin-bottom: 42px; scroll-margin-top: 94px; }
 .academic-intro { padding-top: 4px; }
 .academic-label { display: block; margin-bottom: 24px; color: #22272a; font: 800 clamp(1.9rem, 3vw, 2.65rem)/1.08 var(--sans); letter-spacing: -.04em; }
 .academic-lead { max-width: 790px; margin: 7px 0 0; color: #394248; font-size: 18px; line-height: 1.68; letter-spacing: -.012em; }
@@ -1755,8 +1755,9 @@ html.galaxy-dragging, html.galaxy-dragging * { cursor: grabbing !important; user
 .loop-legend-step-3 { --node-color: #6b69c9; }
 .loop-legend-step-4 { --node-color: #b4864f; }
 
-.academic-publications { border-top: 1px solid #d9dee1; }
+.academic-publications { border-top: 0; }
 .academic-paper { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 22px; padding: 30px 0 32px; border-bottom: 1px solid #d9dee1; }
+.academic-paper:last-child { border-bottom: 0; }
 .academic-paper-year { padding-top: 3px; color: #7b858b; font-size: 13px; font-weight: 700; }
 .academic-paper-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .academic-paper-meta span,
@@ -1885,7 +1886,7 @@ html.galaxy-dragging, html.galaxy-dragging * { cursor: grabbing !important; user
   .profile-sidebar { display: block; }
   .profile-avatar { width: 132px; height: 132px; margin-bottom: 26px; }
   .profile-sidebar h1 { font-size: 27px; }
-  .academic-section { padding-bottom: 46px; margin-bottom: 46px; }
+  .academic-section { padding-bottom: 32px; margin-bottom: 36px; }
   .academic-label { font-size: 2rem; }
   .academic-lead { font-size: 18px; }
   .research-title { font-size: 2.35rem; }
