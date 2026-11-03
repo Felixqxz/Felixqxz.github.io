@@ -23,15 +23,22 @@ type Paper = {
 const papers: Paper[] = [
   {
     year: "2026",
-    status: "Preprint ’26",
+    status: "arXiv ’26",
     title: "ParetoSaddler: Pareto-Guided Optimization of Agent Harnesses for Quality and Cost",
     authors:
       "Xingzhi Qian, Sungho Park, Rongyuan Tan, Jianbo Yu, Jue Zhang, Lorenzo Cavallaro, Menglin Xia, Yanzhi Chen, Xinnuo Xu, Yu Kang, Xinran Zheng, Gagan Somashekar, Xuchao Zhang, Chetan Bansal, Qingwei Lin, Victor Rühle",
-    venue: "Preprint, 2026",
+    venue: "arXiv preprint arXiv:2611.02079",
     abstract:
-      "ParetoSaddler separates intermediate candidate promotion from final deployment selection, using repeated quality–cost evidence and Bayesian bootstrap Pareto support to preserve useful harness updates and improve both quality and cost.",
+      "ParetoSaddler jointly optimizes agent quality and cost by separating intermediate candidate promotion from final deployment selection, using Bayesian bootstrap Pareto support to retain credible improvements across ClawMark and GAIA2.",
     page: "https://autosaddler-projectpage.github.io/ParetoSaddler/",
+    paper: "https://arxiv.org/abs/2611.02079",
     code: "https://github.com/microsoft/AutoSaddler/tree/feat/paretosaddler",
+    bibtex: `@article{qian2026paretosaddler,
+  title   = {{ParetoSaddler}: Pareto-Guided Optimization of Agent Harnesses for Quality and Cost},
+  author  = {Qian, Xingzhi and Park, Sungho and Tan, Rongyuan and Yu, Jianbo and Zhang, Jue and Cavallaro, Lorenzo and Xia, Menglin and Chen, Yanzhi and Xu, Xinnuo and Kang, Yu and Zheng, Xinran and Somashekar, Gagan and Zhang, Xuchao and Bansal, Chetan and Lin, Qingwei and Rühle, Victor},
+  journal = {arXiv preprint arXiv:2611.02079},
+  year    = {2026}
+}`,
   },
   {
     year: "2026",
